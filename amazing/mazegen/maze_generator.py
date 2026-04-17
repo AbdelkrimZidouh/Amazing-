@@ -111,13 +111,86 @@ class MazeGenerator:
             raise ValueError("the coordinates are invalid!")
 
     def _available_neighbors(self, x: int, y: int,
-                             locked: List[List[bool]]) -> List[Tuple[int, int]]:
+                             locked: List[List[bool]]
+                             ) -> List[Tuple[int, int]]:
         """Return in-bounds neighbors that are not locked."""
         candidates = [(x, y - 1), (x + 1, y), (x, y + 1), (x - 1, y)]
         return [
             (nx, ny) for nx, ny in candidates
             if self._is_inside(nx, ny) and not locked[ny][nx]
         ]
+
+    def _is_open_3x3_block(self, x0: int, y0: int) -> bool:
+        """Return True when the 3x3 block at (x0, y0) is fully open."""
+        if x0 < 0 or y0 < 0 or x0 + 2 >= self.width or y0 + 2 >= self.height:
+            return False
+
+        for yy in range(y0, y0 + 3):
+            for xx in range(x0, x0 + 3):
+                if (xx, yy) in self.pattern_cells:
+                    return False
+
+        for yy in range(y0, y0 + 3):
+            for xx in range(x0, x0 + 2):
+                if self.grid[yy][xx] & EAST:
+                    return False
+
+        for yy in range(y0, y0 + 2):
+            for xx in range(x0, x0 + 3):
+                if self.grid[yy][xx] & SOUTH:
+                    return False
+
+        return True
+
+    def _would_create_open_3x3(self, x1: int, y1: int,
+                               x2: int, y2: int) -> bool:
+        """Return True if carving would create a forbidden 3x3 open area."""
+        original_first = self.grid[y1][x1]
+        original_second = self.grid[y2][x2]
+
+        self._carve_passage_between(x1, y1, x2, y2)
+
+        min_x = min(x1, x2) - 2
+        max_x = max(x1, x2)
+        min_y = min(y1, y2) - 2
+        max_y = max(y1, y2)
+
+        found_open_3x3 = False
+        for y0 in range(min_y, max_y + 1):
+            for x0 in range(min_x, max_x + 1):
+                if self._is_open_3x3_block(x0, y0):
+                    found_open_3x3 = True
+                    break
+            if found_open_3x3:
+                break
+
+        self.grid[y1][x1] = original_first
+        self.grid[y2][x2] = original_second
+        return found_open_3x3
+
+    def _connect_all_open_cells(self, visited: List[List[bool]],
+                                locked: List[List[bool]]) -> None:
+        """Ensure all non-locked cells become connected to the entry region."""
+        for y in range(self.height):
+            for x in range(self.width):
+                if locked[y][x] or visited[y][x]:
+                    continue
+
+                connectors = [
+                    (nx, ny)
+                    for (nx, ny) in self._available_neighbors(x, y, locked)
+                    if visited[ny][nx]
+                ]
+
+                if not connectors:
+                    raise GenerationError(
+                        "Impossible maze parameters: 42 pattern disconnects "
+                        "the maze"
+                    )
+
+                cx, cy = random.choice(connectors)
+                self._carve_passage_between(x, y, cx, cy)
+                self._run_backtracker((x, y), visited, locked)
 
     def _run_backtracker(
             self, start: Tuple[int, int],
@@ -174,9 +247,16 @@ class MazeGenerator:
                             (x, y + 1) not in self.pattern_cells):
                         possible.append((x, y, x, y + 1))
         random.shuffle(possible)
-        for i in range(min(loop_count, len(possible))):
-            x1, y1, x2, y2 = possible[i]
+
+        opened = 0
+        for x1, y1, x2, y2 in possible:
+            if opened >= loop_count:
+                break
+            if self._would_create_open_3x3(x1, y1, x2, y2):
+                continue
+
             self._carve_passage_between(x1, y1, x2, y2)
+            opened += 1
 
     def _generate_plain_maze(self) -> List[List[int]]:
         """Generate a plain perfect maze (no 42 pattern) using recursive
@@ -185,6 +265,7 @@ class MazeGenerator:
         locked = [[False] * self.width for _ in range(self.height)]
 
         self._run_backtracker(self.entry, visited, locked)
+        self._connect_all_open_cells(visited, locked)
 
         if not self.perfect:
             num_loops = (self.width * self.height) // 10
@@ -220,6 +301,7 @@ class MazeGenerator:
             self.grid[gy][gx] = NORTH | EAST | SOUTH | WEST
 
         self._run_backtracker(self.entry, visited, locked)
+        self._connect_all_open_cells(visited, locked)
         if not self.perfect:
             num_loops = (self.width * self.height) // 10
             self._open_extra_walls(num_loops)

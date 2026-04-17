@@ -80,7 +80,7 @@ During execution:
 - `G`: Generate a new maze
 - `P`: Toggle shortest-path display
 - `4`: Toggle `42` pattern highlight
-- `C`: Change wall ANSI color code
+- `C`: Choose a wall color from a numbered list
 - `Q`: Quit
 
 ## Algorithms
@@ -90,6 +90,11 @@ During execution:
 - Maintains a stack of cells.
 - Carves passages by removing walls between adjacent cells.
 - Produces a connected maze.
+
+Why this algorithm:
+- It is simple to implement with precise wall control.
+- It naturally builds perfect mazes (single path between two cells).
+- It is fast enough for interactive maze regeneration.
 
 When `PERFECT=false`, extra walls are removed after generation to create loops.
 
@@ -127,9 +132,9 @@ Bitmask values:
 
 ## Project Structure
 - `a_maze_ing.py`: Program entry point and interaction loop.
-- `utils/parser.py`: `AmazeingConfigParser` with validation and error handling.
-- `mazegen/generator.py`: `MazeGenerator` and maze logic.
-- `utils/ascii_renderer.py`: Terminal rendering (`MazeRenderer`).
+- `utils/config_parser.py`: `ConfigLoader` validation and error handling.
+- `mazegen/maze_generator.py`: `MazeGenerator` and maze logic.
+- `utils/maze_renderer.py`: Terminal rendering (`MazeRenderer`).
 
 ## Team & Management
 
@@ -144,6 +149,11 @@ Bitmask values:
 ### Retrospective
 - Strong point: Bitmask representation made solving/rendering efficient.
 - Possible improvement: Add viewport rendering for very large mazes.
+
+### Tools Used
+- Git and GitHub were used to split work, track progress, and review changes.
+- Makefile targets and virtual environments were used to keep install, run,
+  lint, and packaging steps repeatable.
 
 ## Resources
 - Wikipedia: Maze generation algorithms.

@@ -20,6 +20,8 @@ class ConfigLoader:
 
     REQUIRED_KEYS: list[str] = ["WIDTH", "HEIGHT", "ENTRY", "EXIT",
                                 "OUTPUT_FILE", "PERFECT"]
+    OPTIONAL_KEYS: list[str] = ["SEED"]
+    ALLOWED_KEYS: list[str] = REQUIRED_KEYS + OPTIONAL_KEYS
 
     @classmethod
     def _pattern_cells_for_size(cls, width: int,
@@ -97,7 +99,9 @@ class ConfigLoader:
                                       f"{normalized_key}")
 
                 if normalized_key in parsed_pairs:
-                    raise ConfigError(f"Duplicated key found: {normalized_key}")
+                    raise ConfigError(
+                        f"Duplicated key found: {normalized_key}"
+                    )
                 parsed_pairs[normalized_key] = normalized_value
             except ValueError:
                 raise ConfigError(f"Invalid line format (expected KEY=VALUE): "
@@ -107,6 +111,16 @@ class ConfigLoader:
                    if key not in parsed_pairs]
         if missing:
             raise ConfigError(f"Missing required keys: {', '.join(missing)}")
+
+        unexpected = [key for key in parsed_pairs
+                      if key not in ConfigLoader.ALLOWED_KEYS]
+        if unexpected:
+            raise ConfigError(
+                "Unexpected keys found: "
+                f"{', '.join(unexpected)}. "
+                "Allowed keys are: "
+                f"{', '.join(ConfigLoader.ALLOWED_KEYS)}"
+            )
 
         return parsed_pairs
 
@@ -172,7 +186,8 @@ class ConfigLoader:
             blocked_cells = ConfigLoader._pattern_cells_for_size(
                 config["WIDTH"], config["HEIGHT"]
             )
-            if config["ENTRY"] in blocked_cells or config["EXIT"] in blocked_cells:
+            if (config["ENTRY"] in blocked_cells or
+                    config["EXIT"] in blocked_cells):
                 raise ConfigError("ENTRY and EXIT cannot be placed inside the "
                                   "42 pattern walls")
 
@@ -214,7 +229,7 @@ class ConfigLoader:
         return config
 
     def parse(self) -> dict[str, Any]:
-        """Parse the configured file and return validated configuration data."""
+        """Parse the configured file and return validated config values."""
         try:
             with open(self.file_path, "r", encoding="utf-8") as f:
                 lines = f.readlines()

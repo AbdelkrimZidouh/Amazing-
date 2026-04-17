@@ -16,6 +16,24 @@ class MazeRenderer:
     PATH_MARKER = ".."
     EMPTY_MARKER = "  "
     PATTERN_MARKER = "::"
+    WALL_COLOR_OPTIONS: list[tuple[str, str]] = [
+        ("Black", "30"),
+        ("Red", "31"),
+        ("Green", "32"),
+        ("Yellow", "33"),
+        ("Blue", "34"),
+        ("Magenta", "35"),
+        ("Cyan", "36"),
+        ("White", "37"),
+        ("Bright Black (Gray)", "90"),
+        ("Bright Red", "91"),
+        ("Bright Green", "92"),
+        ("Bright Yellow", "93"),
+        ("Bright Blue", "94"),
+        ("Bright Magenta", "95"),
+        ("Bright Cyan", "96"),
+        ("Bright White", "97"),
+    ]
 
     def __init__(self) -> None:
         """Initialize renderer toggles and default color profile."""
@@ -36,6 +54,30 @@ class MazeRenderer:
             self.wall_color_code = normalized
             return True
         return False
+
+    def get_wall_color_menu(self) -> list[str]:
+        """Return numbered color options for the wall color picker."""
+        return [
+            f"{index}. {name} ({ansi_code})"
+            for index, (name, ansi_code) in enumerate(
+                MazeRenderer.WALL_COLOR_OPTIONS, start=1
+            )
+        ]
+
+    def set_wall_color_by_index(self, selected_index: str) -> bool:
+        """Set wall color from a 1-based index picked by the user."""
+        choice = selected_index.strip()
+        if not choice.isdigit():
+            return False
+
+        option_number = int(choice)
+        if (option_number < 1 or
+                option_number > len(MazeRenderer.WALL_COLOR_OPTIONS)):
+            return False
+
+        _, ansi_code = MazeRenderer.WALL_COLOR_OPTIONS[option_number - 1]
+        self.wall_color_code = ansi_code
+        return True
 
     def clear_screen(self) -> None:
         """Backward-compatible wrapper around clear_terminal()."""
